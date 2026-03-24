@@ -1,0 +1,30 @@
+# Intervalle de polling en secondes (défaut: 300 = 5 minutes)
+poll_interval: 300
+
+# Niveau de log : DEBUG, INFO, WARNING, ERROR (défaut: INFO)
+log_level: INFO
+
+# Configuration Synology CalDAV
+synology:
+  # URL complète du endpoint CalDAV de ton Synology
+  # Format : https://<IP_OU_HOSTNAME>:<PORT>/caldav/<USERNAME>
+  # Port HTTPS : 5001 / Port HTTP : 5000
+  url: "https://<IP_DU_NAS>:5001/caldav/ton_username"
+  username: "ton_username"
+  # Mot de passe : préférer SYNOLOGY_PASSWORD en variable d'environnement
+  password: "ton_mot_de_passe"
+  verify_ssl: false     # false si certificat auto-signé
+  timeout: 30            # timeout en secondes pour les requêtes CalDAV
+
+# Mapping des calendriers Google → Synology
+# google_calendar_id: l'ID du calendrier Google (visible dans les paramètres du calendrier)
+# synology_calendar: le nom du calendrier à créer/utiliser dans Synology Calendar
+calendars:
+  - google_calendar_id: "primary"                           # "primary" = calendrier principal
+    synology_calendar: "google-principal"
+
+  - google_calendar_id: "famille@group.calendar.google.com" # exemple d'un autre calendrier
+    synology_calendar: "google-famille"
+
+# - google_calendar_id: "autre@group.calendar.google.com"
+#   synology_calendar: "google-autre"

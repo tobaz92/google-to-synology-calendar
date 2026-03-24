@@ -1,0 +1,8 @@
+data/
+auth.py
+*.md
+.git
+.gitignore
+.dockerignore
+__pycache__
+*.pyc

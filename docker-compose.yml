@@ -1,0 +1,22 @@
+services:
+  google-to-synology:
+    build: .
+    image: google-to-synology-sync:latest
+    container_name: google-to-synology-sync
+    restart: unless-stopped
+    stop_grace_period: 10s
+    volumes:
+      - ./data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=10m
+    mem_limit: 192m
+    memswap_limit: 192m
+    environment:
+      - TZ=Europe/Paris
+      - DATA_DIR=/app/data
+      - PYTHONDONTWRITEBYTECODE=1
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

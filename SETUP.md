@@ -1,0 +1,141 @@
+# Guide de Setup — Google to Synology Calendar Sync
+
+## Étape 1 : Configurer Google Cloud (5 min)
+
+1. Va sur **https://console.cloud.google.com/**
+2. Clique sur le sélecteur de projet en haut → **Nouveau projet**
+   - Nom : `google-calendar-sync` (ou ce que tu veux)
+   - Clique **Créer**
+3. Sélectionne le projet créé
+4. Va dans **API et services** → **Bibliothèque**
+   - Cherche **Google Calendar API**
+   - Clique dessus → **Activer**
+5. Va dans **API et services** → **Écran de consentement OAuth**
+   - Type : **Externe**
+   - Remplis le nom de l'app (ex: "Calendar Sync")
+   - Email de contact : ton email
+   - Clique **Enregistrer et continuer** sur chaque page
+6. Va dans **API et services** → **Identifiants**
+   - Clique **+ Créer des identifiants** → **ID client OAuth 2.0**
+   - Type d'application : **Application de bureau**
+   - Nom : `calendar-sync`
+   - Clique **Créer**
+   - **Télécharge le JSON** (bouton de téléchargement)
+   - Renomme le fichier en `credentials.json`
+   - Place-le dans le dossier `data/`
+
+> **Note** : L'app sera en mode "test". Va dans l'écran de consentement OAuth →
+> **Utilisateurs test** → ajoute ton adresse Gmail. Sinon l'auth échouera.
+
+## Étape 2 : Générer le token d'authentification
+
+Sur ta machine locale (pas sur le Synology) :
+
+```bash
+# Installe les dépendances
+pip install google-api-python-client google-auth-oauthlib
+
+# Crée le dossier data si nécessaire
+mkdir -p data
+
+# Lance l'authentification
+python auth.py
+```
+
+Un navigateur s'ouvre → connecte-toi avec ton compte Google → autorise l'accès.
+Le fichier `data/token.json` est créé.
+
+## Étape 3 : Trouver l'URL CalDAV Synology
+
+1. Sur ton Synology, ouvre **Synology Calendar** (l'app web)
+2. À gauche, survole un calendrier → clique la petite icône ⚙️ ou ···
+3. Sélectionne **Paramètres CalDAV** ou **Compte CalDAV**
+4. Tu verras l'URL, typiquement :
+   ```
+   https://ton-nas.local:5001/caldav/ton_username
+   ```
+   Ou via l'IP interne :
+   ```
+   https://192.168.1.XXX:5001/caldav/ton_username
+   ```
+
+Si tu ne trouves pas l'option dans l'interface :
+- Va dans **Panneau de configuration** → **Applications** → **Synology Calendar**
+- Vérifie que CalDAV est activé
+- L'URL de base est : `http(s)://<IP>:<PORT>/caldav/<USERNAME>`
+  - Port HTTP : 5000
+  - Port HTTPS : 5001
+
+## Étape 4 : Configurer le sync
+
+```bash
+cp config.yaml.example data/config.yaml
+```
+
+Édite `data/config.yaml` :
+
+```yaml
+poll_interval: 300  # 5 minutes
+
+synology:
+  url: "https://<IP_DU_NAS>:5001"      # ← ton IP Synology
+  username: "ton_user"                  # ← ton user Synology
+  password: "ton_password"              # ← ton mot de passe Synology
+  verify_ssl: false                     # false si certificat auto-signé
+
+calendars:
+  - google_calendar_id: "primary"
+    synology_calendar: "google-principal"
+```
+
+### Trouver l'ID d'un calendrier Google
+
+1. Va sur **https://calendar.google.com**
+2. À gauche, survole le calendrier → ⋮ → **Paramètres et partage**
+3. Descends jusqu'à **Intégrer l'agenda**
+4. Copie l'**ID de l'agenda** (ressemble à `xxxx@group.calendar.google.com`)
+5. Pour le calendrier principal, utilise simplement `primary`
+
+## Étape 5 : Lancer sur le Synology
+
+### Option A : Via docker-compose (SSH)
+
+Copie tout le projet sur ton Synology, puis :
+
+```bash
+cd /chemin/vers/googletocalendar
+docker-compose up -d
+```
+
+### Option B : Via Container Manager (interface web)
+
+1. Copie le dossier du projet sur le Synology (via File Station ou SMB)
+2. Ouvre **Container Manager**
+3. Va dans **Projet** → **Créer**
+4. Sélectionne le dossier contenant `docker-compose.yml`
+5. Lance le projet
+
+### Vérifier les logs
+
+```bash
+docker logs -f google-to-synology-sync
+```
+
+Ou via Container Manager → clique sur le container → **Journal**
+
+## Dépannage
+
+### "Token expiré" / erreur 401
+Relance `python auth.py` sur ta machine locale et recopie `data/token.json` sur le Synology.
+
+### "Sync token invalide"
+Normal après une longue période sans sync. L'app fait automatiquement un resync complet.
+
+### Erreur SSL / certificat
+Mets `verify_ssl: false` dans config.yaml si ton Synology utilise un certificat auto-signé.
+
+### Le calendrier n'apparaît pas dans Synology Calendar
+Les calendriers créés automatiquement via CalDAV (MKCALENDAR) n'apparaissent **pas** dans l'interface web de Synology Calendar. Il faut **créer les calendriers manuellement** dans l'UI Synology Calendar, puis le script écrit dedans.
+
+### Utiliser un compte dédié
+Il est recommandé de créer un utilisateur Synology dédié (ex: `syncuser`) pour ne pas exposer les credentials du compte principal. Les calendriers peuvent ensuite être partagés en lecture seule avec le compte principal via l'UI Synology Calendar (clic droit sur le calendrier → Partager).

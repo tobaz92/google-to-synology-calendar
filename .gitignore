@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Données sensibles — NE JAMAIS COMMIT
+data/config.yaml
+data/token.json
+data/credentials.json
+data/sync_state.json
+
+# Certificats et clés privées
+*.pem
+*.key
+serviceAccountKey.json
+
+# Logs applicatifs
+data/*.log
+
+# Environnement
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Outils locaux
+.claude/
+CLAUDE.md
