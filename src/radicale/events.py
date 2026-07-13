@@ -1,4 +1,4 @@
-"""Gestion des événements dans Synology Calendar (CalDAV)."""
+"""Gestion des événements dans Radicale (CalDAV)."""
 
 import logging
 
@@ -7,7 +7,7 @@ from caldav.lib.error import NotFoundError
 from ..core.constants import GOOGLE_UID_SUFFIX
 from .converter import google_event_to_ical
 
-log = logging.getLogger("google2synology")
+log = logging.getLogger("google2radicale")
 
 
 def sync_event_to_caldav(caldav_calendar, event: dict) -> str:

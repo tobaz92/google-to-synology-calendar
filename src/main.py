@@ -7,7 +7,7 @@ import threading
 
 from .core import load_config, load_state, save_state, setup_logging, get_logger
 from .google import get_google_service, fetch_events_incremental
-from .synology import get_caldav_client, get_or_create_calendar, sync_event_to_caldav
+from .radicale import get_caldav_client, get_or_create_calendar, sync_event_to_caldav
 
 # Event pour arrêt coopératif — sort du sleep sans interrompre une écriture
 _shutdown = threading.Event()
@@ -21,9 +21,9 @@ def sync_once(config: dict, state: dict, log, service=None) -> dict:
 
     for mapping in config["calendars"]:
         gcal_id = mapping["google_calendar_id"]
-        syn_cal_name = mapping["synology_calendar"]
+        radicale_cal_name = mapping["radicale_calendar"]
 
-        log.info("Sync : %s → %s", gcal_id, syn_cal_name)
+        log.info("Sync : %s → %s", gcal_id, radicale_cal_name)
 
         sync_token = state.get(gcal_id)
         events, new_sync_token = fetch_events_incremental(service, gcal_id, sync_token)
@@ -35,7 +35,7 @@ def sync_once(config: dict, state: dict, log, service=None) -> dict:
             continue
 
         log.info("  %d événement(s) à traiter", len(events))
-        caldav_calendar = get_or_create_calendar(client, syn_cal_name)
+        caldav_calendar = get_or_create_calendar(client, radicale_cal_name)
         stats = _process_events(caldav_calendar, events, log)
 
         log.info(
@@ -78,7 +78,7 @@ def main():
     setup_logging(config.get("log_level", "INFO"))
     log = get_logger()
 
-    log.info("=== Google → Synology Calendar Sync ===")
+    log.info("=== Google → Radicale Sync ===")
 
     state = load_state()
     poll_interval = config.get("poll_interval", 300)

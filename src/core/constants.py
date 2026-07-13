@@ -2,9 +2,9 @@
 
 SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 
-GOOGLE_UID_SUFFIX = "@google2synology"
+GOOGLE_UID_SUFFIX = "@google2radicale"
 
-PRODID = "-//Google2Synology//FR"
+PRODID = "-//Google2Radicale//FR"
 
 # Retry
 MAX_RETRIES = 5

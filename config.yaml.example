@@ -4,27 +4,27 @@ poll_interval: 300
 # Niveau de log : DEBUG, INFO, WARNING, ERROR (défaut: INFO)
 log_level: INFO
 
-# Configuration Synology CalDAV
-synology:
-  # URL complète du endpoint CalDAV de ton Synology
-  # Format : https://<IP_OU_HOSTNAME>:<PORT>/caldav/<USERNAME>
-  # Port HTTPS : 5001 / Port HTTP : 5000
-  url: "https://<IP_DU_NAS>:5001/caldav/ton_username"
+# Configuration Radicale (CalDAV)
+radicale:
+  # URL du serveur Radicale, avec le chemin de l'utilisateur
+  # Format : http://<IP_OU_HOSTNAME>:5232/<username>/ (port 5232 par défaut)
+  # En HTTPS derrière un reverse proxy : https://radicale.mondomaine.tld/<username>/
+  url: "http://<IP_DU_NAS>:5232/ton_username/"
   username: "ton_username"
-  # Mot de passe : préférer SYNOLOGY_PASSWORD en variable d'environnement
+  # Mot de passe : préférer RADICALE_PASSWORD en variable d'environnement
   password: "ton_mot_de_passe"
-  verify_ssl: false     # false si certificat auto-signé
+  verify_ssl: true       # false uniquement si certificat auto-signé
   timeout: 30            # timeout en secondes pour les requêtes CalDAV
 
-# Mapping des calendriers Google → Synology
+# Mapping des calendriers Google → Radicale
 # google_calendar_id: l'ID du calendrier Google (visible dans les paramètres du calendrier)
-# synology_calendar: le nom du calendrier à créer/utiliser dans Synology Calendar
+# radicale_calendar: le nom du calendrier Radicale (créé automatiquement s'il n'existe pas)
 calendars:
   - google_calendar_id: "primary"                           # "primary" = calendrier principal
-    synology_calendar: "google-principal"
+    radicale_calendar: "google-principal"
 
   - google_calendar_id: "famille@group.calendar.google.com" # exemple d'un autre calendrier
-    synology_calendar: "google-famille"
+    radicale_calendar: "google-famille"
 
 # - google_calendar_id: "autre@group.calendar.google.com"
-#   synology_calendar: "google-autre"
+#   radicale_calendar: "google-autre"

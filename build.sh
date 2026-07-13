@@ -1,10 +1,10 @@
 #!/bin/bash
 # Build l'image Docker sur le NAS Synology (à lancer en SSH une seule fois)
-# Usage : ssh admin@NAS "cd /volume1/docker/google-to-synology && bash build.sh"
+# Usage : ssh admin@NAS "cd /volume1/docker/google-to-radicale && bash build.sh"
 
 set -e
 
-IMAGE_NAME="google-to-synology-sync:latest"
+IMAGE_NAME="google-to-radicale-sync:latest"
 
 echo "Construction de l'image $IMAGE_NAME..."
 docker build -t "$IMAGE_NAME" .

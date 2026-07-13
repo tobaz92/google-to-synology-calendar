@@ -6,7 +6,7 @@ import os
 
 from .paths import STATE_PATH
 
-log = logging.getLogger("google2synology")
+log = logging.getLogger("google2radicale")
 
 
 def load_state() -> dict:

@@ -8,7 +8,7 @@ from googleapiclient.errors import HttpError
 
 from ..core.constants import MAX_RETRIES, RETRY_BASE_DELAY
 
-log = logging.getLogger("google2synology")
+log = logging.getLogger("google2radicale")
 
 
 def fetch_events_incremental(service, calendar_id: str, sync_token: str = None):
