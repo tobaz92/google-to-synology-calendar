@@ -84,6 +84,14 @@ calendars:
     radicale_calendar: "google-principal"
 ```
 
+Plutôt que de mettre le mot de passe dans le fichier, tu peux l'exporter
+avant de lancer le container — docker-compose le transmet :
+
+```bash
+export RADICALE_PASSWORD='ton_password'
+docker-compose up -d
+```
+
 ### Trouver l'ID d'un calendrier Google
 
 1. Va sur **https://calendar.google.com**
@@ -130,6 +138,11 @@ l'URL contient bien le username (`http://.../<username>/`).
 
 ### "Sync token invalide"
 Normal après une longue période sans sync. L'app fait automatiquement un resync complet.
+
+### Changement de serveur ou d'URL Radicale
+Rien à faire : l'état de sync (`data/sync_state.json`) mémorise l'URL cible.
+Si elle change, les syncTokens sont invalidés et un resync complet repeuple
+automatiquement la nouvelle cible.
 
 ### Le container ne joint pas Radicale
 Si Radicale tourne aussi en container sur le même NAS, utilise l'IP du NAS
