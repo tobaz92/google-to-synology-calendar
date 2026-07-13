@@ -45,6 +45,11 @@ python auth.py
 Un navigateur s'ouvre → connecte-toi avec ton compte Google → autorise l'accès.
 Le fichier `data/token.json` est créé.
 
+> **Sync bidirectionnelle** : le scope demandé est la lecture/écriture du
+> calendrier. Si tu avais un `token.json` généré par une ancienne version
+> (lecture seule), supprime-le et relance `python auth.py` — sinon les
+> écritures vers Google échoueront en 403.
+
 ## Étape 3 : Radicale
 
 Il te faut un serveur Radicale accessible depuis le container (par exemple un
@@ -131,6 +136,14 @@ Ou via Container Manager → clique sur le container → **Journal**
 
 ### "Token expiré" / erreur 401 côté Google
 Relance `python auth.py` sur ta machine locale et recopie `data/token.json` sur le Synology.
+
+### Erreur 403 quand une modif Radicale part vers Google
+Ton `token.json` date d'une version lecture seule. Supprime-le, relance
+`python auth.py` (le scope inclut maintenant l'écriture) et recopie-le.
+
+### Des événements sont comptés « ignoré » dans les logs
+Ce sont des exceptions d'occurrences de récurrence (une occurrence isolée
+modifiée), non gérées. La série récurrente elle-même se synchronise.
 
 ### Erreur 401 côté Radicale
 Vérifie le couple username/password dans le `htpasswd` de Radicale, et que
