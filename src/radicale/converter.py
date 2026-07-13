@@ -83,7 +83,7 @@ def _parse_datetime(dt_str: str, tz_name: str | None = None) -> datetime:
     dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
     if tz_name:
         # Convertit vers un timezone nommé (ex: Europe/Paris)
-        # pour que Synology interprète correctement le TZID
+        # pour que les clients CalDAV interprètent correctement le TZID
         tz = ZoneInfo(tz_name)
         dt = dt.astimezone(tz)
     elif dt.utcoffset() is not None:

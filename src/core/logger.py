@@ -46,6 +46,6 @@ def setup_logging(level: str = "INFO") -> None:
     _initialized = True
 
 
-def get_logger(name: str = "google2synology") -> logging.Logger:
+def get_logger(name: str = "google2radicale") -> logging.Logger:
     """Retourne le logger principal."""
     return logging.getLogger(name)

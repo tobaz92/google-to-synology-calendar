@@ -6,7 +6,7 @@ import os
 
 from .paths import STATE_PATH
 
-log = logging.getLogger("google2synology")
+log = logging.getLogger("google2radicale")
 
 
 def load_state() -> dict:
@@ -20,6 +20,19 @@ def load_state() -> dict:
     except (json.JSONDecodeError, ValueError) as e:
         log.warning("sync_state.json corrompu (%s), reset de l'état", e)
         return {}
+
+
+def reset_if_target_changed(state: dict, target_url: str) -> dict:
+    """Invalide les syncTokens si la cible CalDAV a changé.
+
+    Sans reset, les tokens de l'ancienne cible feraient croire que tout
+    est déjà synchronisé et la nouvelle cible resterait vide.
+    """
+    if state.get("_target_url") == target_url:
+        return state
+    if state:
+        log.warning("Cible CalDAV changée — resync complet forcé")
+    return {"_target_url": target_url}
 
 
 def save_state(state: dict) -> None:

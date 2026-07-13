@@ -1,8 +1,8 @@
 services:
-  google-to-synology:
+  google-to-radicale:
     build: .
-    image: google-to-synology-sync:latest
-    container_name: google-to-synology-sync
+    image: google-to-radicale-sync:latest
+    container_name: google-to-radicale-sync
     restart: unless-stopped
     stop_grace_period: 10s
     volumes:
@@ -16,6 +16,7 @@ services:
       - TZ=Europe/Paris
       - DATA_DIR=/app/data
       - PYTHONDONTWRITEBYTECODE=1
+      - RADICALE_PASSWORD=${RADICALE_PASSWORD:-}
     cap_drop:
       - ALL
     security_opt:

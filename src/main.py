@@ -5,9 +5,15 @@ import signal
 import sys
 import threading
 
-from .core import load_config, load_state, save_state, setup_logging, get_logger
+from .core import (
+    load_config, load_state, reset_if_target_changed, save_state,
+    setup_logging, get_logger,
+)
 from .google import get_google_service, fetch_events_incremental
-from .synology import get_caldav_client, get_or_create_calendar, sync_event_to_caldav
+from .radicale import (
+    get_caldav_client, get_or_create_calendar, invalidate_calendar,
+    sync_event_to_caldav,
+)
 
 # Event pour arrêt coopératif — sort du sleep sans interrompre une écriture
 _shutdown = threading.Event()
@@ -21,9 +27,9 @@ def sync_once(config: dict, state: dict, log, service=None) -> dict:
 
     for mapping in config["calendars"]:
         gcal_id = mapping["google_calendar_id"]
-        syn_cal_name = mapping["synology_calendar"]
+        radicale_cal_name = mapping["radicale_calendar"]
 
-        log.info("Sync : %s → %s", gcal_id, syn_cal_name)
+        log.info("Sync : %s → %s", gcal_id, radicale_cal_name)
 
         sync_token = state.get(gcal_id)
         events, new_sync_token = fetch_events_incremental(service, gcal_id, sync_token)
@@ -35,13 +41,22 @@ def sync_once(config: dict, state: dict, log, service=None) -> dict:
             continue
 
         log.info("  %d événement(s) à traiter", len(events))
-        caldav_calendar = get_or_create_calendar(client, syn_cal_name)
+        caldav_calendar = get_or_create_calendar(client, radicale_cal_name)
         stats = _process_events(caldav_calendar, events, log)
 
         log.info(
-            "  Résultat : %d créé(s), %d mis à jour, %d supprimé(s), %d erreur(s)",
-            stats["created"], stats["updated"], stats["deleted"], stats["errors"],
+            "  Résultat : %d créé(s), %d mis à jour, %d supprimé(s), "
+            "%d ignoré(s), %d erreur(s)",
+            stats["created"], stats["updated"], stats["deleted"],
+            stats["skipped"], stats["errors"],
         )
+
+        if stats["errors"]:
+            # Token non avancé : Google renverra le lot au prochain cycle.
+            # Les écritures réussies sont rejouées sans dégât (update en place).
+            invalidate_calendar(radicale_cal_name)
+            log.warning("  syncToken non avancé — nouvelle tentative au prochain cycle")
+            continue
 
         if new_sync_token:
             state[gcal_id] = new_sync_token
@@ -51,15 +66,21 @@ def sync_once(config: dict, state: dict, log, service=None) -> dict:
 
 def _process_events(caldav_calendar, events: list, log) -> dict:
     """Traite une liste d'événements et retourne les statistiques."""
-    stats = {"created": 0, "updated": 0, "deleted": 0, "errors": 0}
+    stats = {"created": 0, "updated": 0, "deleted": 0, "skipped": 0, "errors": 0}
 
     for event in events:
+        summary = event.get("summary", event.get("id", "?"))
         try:
             result = sync_event_to_caldav(caldav_calendar, event)
             stats[result] = stats.get(result, 0) + 1
+        except ValueError as e:
+            # Donnée Google inconvertible : la retenter ne changera rien,
+            # ne bloque pas l'avancement du syncToken (contrairement aux
+            # erreurs I/O, qui déclenchent un retry du lot)
+            stats["skipped"] += 1
+            log.warning("  Ignoré '%s': %s", summary, e)
         except Exception as e:
             stats["errors"] += 1
-            summary = event.get("summary", event.get("id", "?"))
             log.error("  Erreur sync '%s': %s", summary, e)
 
     return stats
@@ -78,9 +99,9 @@ def main():
     setup_logging(config.get("log_level", "INFO"))
     log = get_logger()
 
-    log.info("=== Google → Synology Calendar Sync ===")
+    log.info("=== Google → Radicale Sync ===")
 
-    state = load_state()
+    state = reset_if_target_changed(load_state(), config["radicale"]["url"])
     poll_interval = config.get("poll_interval", 300)
 
     log.info("Polling toutes les %d secondes", poll_interval)

@@ -11,7 +11,7 @@ from googleapiclient.discovery import build
 from ..core.constants import SCOPES
 from ..core.paths import TOKEN_PATH
 
-log = logging.getLogger("google2synology")
+log = logging.getLogger("google2radicale")
 
 
 def get_google_service():
