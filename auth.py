@@ -19,7 +19,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 DATA_DIR = Path(__file__).parent / "data"
 CREDENTIALS_PATH = DATA_DIR / "credentials.json"

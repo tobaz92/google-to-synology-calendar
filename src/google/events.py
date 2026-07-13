@@ -1,12 +1,10 @@
 """Récupération des événements Google Calendar."""
 
 import logging
-import random
-import time
 
 from googleapiclient.errors import HttpError
 
-from ..core.constants import MAX_RETRIES, RETRY_BASE_DELAY
+from .retry import execute_with_retry
 
 log = logging.getLogger("google2radicale")
 
@@ -23,7 +21,7 @@ def fetch_events_incremental(service, calendar_id: str, sync_token: str = None):
 
     while True:
         params = _build_list_params(calendar_id, sync_token, page_token)
-        result = _execute_with_retry(service, params)
+        result = _execute_list(service, params)
 
         if result is None:
             # syncToken invalide, resync complet
@@ -51,33 +49,23 @@ def _build_list_params(calendar_id: str, sync_token: str, page_token: str) -> di
         # singleEvents est INCOMPATIBLE avec syncToken (API Google)
         params["syncToken"] = sync_token
     else:
-        # Sync initiale : on peut utiliser singleEvents
-        params["singleEvents"] = True
+        # Pas de singleEvents : on veut les événements maîtres avec RRULE,
+        # pas les occurrences éclatées, pour rester cohérent avec le mode
+        # syncToken (bidirectionnel).
         params["timeMin"] = "2020-01-01T00:00:00Z"
 
     return params
 
 
-def _execute_with_retry(service, params: dict):
+def _execute_list(service, params: dict):
     """
-    Exécute l'appel API avec retry + backoff exponentiel.
+    Exécute events().list() avec retry.
 
-    Retourne None si le syncToken est invalide (410 Gone).
+    Retourne None si le syncToken est invalide (410 Gone) — spécifique au list.
     """
-    for attempt in range(MAX_RETRIES):
-        try:
-            return service.events().list(**params).execute()
-        except HttpError as e:
-            if e.resp.status == 410:
-                return None
-            if e.resp.status in (429, 500, 503) and attempt < MAX_RETRIES - 1:
-                delay = RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 1)
-                log.warning(
-                    "Erreur Google API %d, retry dans %ds (tentative %d/%d)",
-                    e.resp.status, delay, attempt + 1, MAX_RETRIES,
-                )
-                time.sleep(delay)
-                continue
-            raise
-
-    raise RuntimeError("Nombre max de retries atteint pour l'API Google")
+    try:
+        return execute_with_retry(service.events().list(**params))
+    except HttpError as e:
+        if e.resp.status == 410:
+            return None
+        raise
