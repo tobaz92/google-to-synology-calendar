@@ -1,4 +1,4 @@
-# Guide de Setup — Google to Synology Calendar Sync
+# Guide de Setup — Google to Radicale Sync
 
 ## Étape 1 : Configurer Google Cloud (5 min)
 
@@ -45,26 +45,23 @@ python auth.py
 Un navigateur s'ouvre → connecte-toi avec ton compte Google → autorise l'accès.
 Le fichier `data/token.json` est créé.
 
-## Étape 3 : Trouver l'URL CalDAV Synology
+## Étape 3 : Radicale
 
-1. Sur ton Synology, ouvre **Synology Calendar** (l'app web)
-2. À gauche, survole un calendrier → clique la petite icône ⚙️ ou ···
-3. Sélectionne **Paramètres CalDAV** ou **Compte CalDAV**
-4. Tu verras l'URL, typiquement :
+Il te faut un serveur Radicale accessible depuis le container (par exemple un
+container Radicale sur le même NAS).
+
+1. Vérifie que Radicale répond : ouvre `http://<IP_DU_NAS>:5232/` dans un
+   navigateur → l'interface web de Radicale s'affiche
+2. Connecte-toi avec ton utilisateur Radicale (défini dans le `htpasswd` de
+   Radicale, section `[auth]` de sa config)
+3. L'URL CalDAV à utiliser est :
    ```
-   https://ton-nas.local:5001/caldav/ton_username
-   ```
-   Ou via l'IP interne :
-   ```
-   https://192.168.1.XXX:5001/caldav/ton_username
+   http://<IP_DU_NAS>:5232/<username>/
    ```
 
-Si tu ne trouves pas l'option dans l'interface :
-- Va dans **Panneau de configuration** → **Applications** → **Synology Calendar**
-- Vérifie que CalDAV est activé
-- L'URL de base est : `http(s)://<IP>:<PORT>/caldav/<USERNAME>`
-  - Port HTTP : 5000
-  - Port HTTPS : 5001
+Pas besoin de créer les calendriers à la main : le script les crée
+automatiquement via CalDAV s'ils n'existent pas, et ils apparaissent dans
+l'interface web de Radicale.
 
 ## Étape 4 : Configurer le sync
 
@@ -77,15 +74,14 @@ cp config.yaml.example data/config.yaml
 ```yaml
 poll_interval: 300  # 5 minutes
 
-synology:
-  url: "https://<IP_DU_NAS>:5001"      # ← ton IP Synology
-  username: "ton_user"                  # ← ton user Synology
-  password: "ton_password"              # ← ton mot de passe Synology
-  verify_ssl: false                     # false si certificat auto-signé
+radicale:
+  url: "http://<IP_DU_NAS>:5232/ton_user/"  # ← URL Radicale + username
+  username: "ton_user"                       # ← ton user Radicale
+  password: "ton_password"                   # ← ton mot de passe Radicale
 
 calendars:
   - google_calendar_id: "primary"
-    synology_calendar: "google-principal"
+    radicale_calendar: "google-principal"
 ```
 
 ### Trouver l'ID d'un calendrier Google
@@ -118,24 +114,28 @@ docker-compose up -d
 ### Vérifier les logs
 
 ```bash
-docker logs -f google-to-synology-sync
+docker logs -f google-to-radicale-sync
 ```
 
 Ou via Container Manager → clique sur le container → **Journal**
 
 ## Dépannage
 
-### "Token expiré" / erreur 401
+### "Token expiré" / erreur 401 côté Google
 Relance `python auth.py` sur ta machine locale et recopie `data/token.json` sur le Synology.
+
+### Erreur 401 côté Radicale
+Vérifie le couple username/password dans le `htpasswd` de Radicale, et que
+l'URL contient bien le username (`http://.../<username>/`).
 
 ### "Sync token invalide"
 Normal après une longue période sans sync. L'app fait automatiquement un resync complet.
 
+### Le container ne joint pas Radicale
+Si Radicale tourne aussi en container sur le même NAS, utilise l'IP du NAS
+(pas `localhost`, qui pointe vers le container de sync lui-même), ou mets les
+deux containers sur le même réseau Docker.
+
 ### Erreur SSL / certificat
-Mets `verify_ssl: false` dans config.yaml si ton Synology utilise un certificat auto-signé.
-
-### Le calendrier n'apparaît pas dans Synology Calendar
-Les calendriers créés automatiquement via CalDAV (MKCALENDAR) n'apparaissent **pas** dans l'interface web de Synology Calendar. Il faut **créer les calendriers manuellement** dans l'UI Synology Calendar, puis le script écrit dedans.
-
-### Utiliser un compte dédié
-Il est recommandé de créer un utilisateur Synology dédié (ex: `syncuser`) pour ne pas exposer les credentials du compte principal. Les calendriers peuvent ensuite être partagés en lecture seule avec le compte principal via l'UI Synology Calendar (clic droit sur le calendrier → Partager).
+Mets `verify_ssl: false` dans config.yaml uniquement si tu passes par HTTPS
+avec un certificat auto-signé.

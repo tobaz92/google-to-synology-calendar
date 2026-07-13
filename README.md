@@ -1,16 +1,16 @@
-# Google to Synology Calendar Sync
+# Google to Radicale Sync
 
-Synchronisation **unidirectionnelle** Google Calendar vers Synology Calendar (CalDAV).
+Synchronisation **unidirectionnelle** Google Calendar vers un serveur [Radicale](https://radicale.org/) (CalDAV).
 
-Dès qu'un changement est détecté dans un calendrier Google, il est automatiquement répercuté (création, mise à jour, suppression) dans le calendrier Synology correspondant.
+Dès qu'un changement est détecté dans un calendrier Google, il est automatiquement répercuté (création, mise à jour, suppression) dans le calendrier Radicale correspondant.
 
 ## Fonctionnalités
 
 - **Sync incrémentale** via Google `syncToken` (ne récupère que les changements)
 - **Plusieurs calendriers** avec mapping configurable
+- **Création automatique** des calendriers Radicale manquants
 - **Polling** périodique (intervalle configurable)
 - **Déploiement Docker** pensé pour Synology Container Manager
-- **Détection intelligente** des calendriers Synology (évite les doublons CalDAV)
 
 ## Quickstart
 
@@ -36,26 +36,25 @@ Un navigateur s'ouvre, connecte-toi avec ton compte Google. Le fichier `data/tok
 cp config.yaml.example data/config.yaml
 ```
 
-Édite `data/config.yaml` avec tes infos Synology et tes calendriers Google :
+Édite `data/config.yaml` avec tes infos Radicale et tes calendriers Google :
 
 ```yaml
 poll_interval: 300
 
-synology:
-  url: "https://<IP_DU_NAS>:5001/caldav/syncuser"
+radicale:
+  url: "http://<IP_DU_NAS>:5232/syncuser/"
   username: "syncuser"
   password: "ton_mot_de_passe"
-  verify_ssl: false
 
 calendars:
   - google_calendar_id: "primary"
-    synology_calendar: "mon-calendrier"
+    radicale_calendar: "mon-calendrier"
 
   - google_calendar_id: "xxxx@group.calendar.google.com"
-    synology_calendar: "autre-calendrier"
+    radicale_calendar: "autre-calendrier"
 ```
 
-> **Important** : crée les calendriers **manuellement** dans l'interface Synology Calendar avant de lancer la sync. Les calendriers créés via CalDAV n'apparaissent pas dans l'UI.
+Les calendriers Radicale sont créés automatiquement s'ils n'existent pas.
 
 ### 4. Lancer
 
@@ -65,7 +64,7 @@ docker-compose up -d
 ```
 
 **Synology Container Manager :**
-1. Copie le projet sur le NAS (ex: `/volume1/docker/google-to-synology/`)
+1. Copie le projet sur le NAS (ex: `/volume1/docker/google-to-radicale/`)
 2. Container Manager → Projet → Créer → sélectionne le dossier
 3. Construire et Démarrer
 
@@ -87,16 +86,15 @@ DATA_DIR=./data python -m src
 │   ├── main.py              # boucle de sync principale
 │   ├── core/                # config, state, logging, constantes
 │   ├── google/              # auth + lecture événements Google
-│   └── synology/            # client CalDAV, conversion, CRUD
+│   └── radicale/            # client CalDAV, conversion, CRUD
 └── data/                    # volume Docker (config, tokens, state)
 ```
 
-## Conseils Synology
+## Conseils Radicale
 
-- **Compte dédié** : crée un user Synology séparé (ex: `syncuser`) pour isoler les credentials
-- **Partage** : partage les calendriers du compte dédié en lecture seule avec ton compte principal
-- **CalDAV** : vérifie que le service CalDAV est activé dans les paramètres de Synology Calendar
-- **SSL** : utilise `verify_ssl: false` si ton NAS a un certificat auto-signé
+- **Utilisateur dédié** : crée un user Radicale spécifique à la sync si ton serveur est multi-utilisateurs
+- **HTTP local** : si Radicale et la sync tournent sur le même NAS, HTTP en réseau local suffit ; passe par HTTPS (reverse proxy) dès que le trafic sort du NAS
+- **Certificat auto-signé** : mets `verify_ssl: false` uniquement dans ce cas
 
 ## Guide détaillé
 
