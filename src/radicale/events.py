@@ -4,45 +4,40 @@ import logging
 
 from caldav.lib.error import NotFoundError
 
-from ..core.constants import GOOGLE_UID_SUFFIX
-from .converter import google_event_to_ical
+from .changes import event_href
 
 log = logging.getLogger("google2radicale")
 
 
-def sync_event_to_caldav(caldav_calendar, event: dict) -> str:
-    """
-    Synchronise un événement Google vers CalDAV.
-    Retourne "created", "updated" ou "deleted".
-    """
-    uid = event["id"] + GOOGLE_UID_SUFFIX
+def upsert_event(caldav_calendar, uid: str, ical_data: str) -> tuple[str, str]:
+    """Crée ou écrase un événement par UID. Retourne ("created"|"updated", href).
 
-    if event.get("status") == "cancelled":
-        _delete_event(caldav_calendar, uid)
-        return "deleted"
-
-    ical_data = google_event_to_ical(event)
+    Un événement existant est écrasé EN PLACE (un seul PUT sur la même URL) :
+    jamais de delete+recreate, pour ne pas ouvrir de fenêtre où l'événement
+    a disparu sans avoir été recréé. Le href canonique retourné permet de
+    mapper les futures suppressions (le REPORT sync-collection ne renvoie
+    que des href).
+    """
     existing = _find_event_by_uid(caldav_calendar, uid)
-
     if existing:
-        # Écrasement en place (PUT sur la même URL) : pas de fenêtre où
-        # l'événement est supprimé sans avoir été recréé
         existing.data = ical_data
         existing.save()
-        return "updated"
+        return "updated", event_href(existing)
 
-    caldav_calendar.save_event(ical_data)
-    return "created"
+    created = caldav_calendar.save_event(ical_data)
+    return "created", event_href(created)
 
 
-def _delete_event(caldav_calendar, uid: str) -> None:
-    """Supprime un événement du calendrier CalDAV par UID."""
+def delete_event_by_uid(caldav_calendar, uid: str) -> bool:
+    """Supprime un événement par UID. Retourne True si supprimé, False si absent."""
     existing = _find_event_by_uid(caldav_calendar, uid)
-    if existing:
-        existing.delete()
-        log.info("  Supprimé : %s", uid)
-    else:
+    if not existing:
         log.debug("  Événement déjà absent : %s", uid)
+        return False
+
+    existing.delete()
+    log.info("  Supprimé : %s", uid)
+    return True
 
 
 def _find_event_by_uid(caldav_calendar, uid: str):

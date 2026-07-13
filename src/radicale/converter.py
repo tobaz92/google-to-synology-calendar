@@ -14,23 +14,31 @@ STATUS_MAP = {
 }
 
 
-def google_event_to_ical(event: dict) -> str:
-    """Convertit un événement Google Calendar en string iCalendar."""
+def google_event_to_ical(event: dict, uid: str | None = None) -> str:
+    """Convertit un événement Google Calendar en string iCalendar.
+
+    ``uid`` force l'UID du VEVENT : indispensable quand la cible est un
+    événement d'origine Radicale (UID natif ≠ id Google + suffixe), sinon
+    l'écrasement en place changerait l'identité de la ressource.
+    """
+    if event.get("recurringEventId"):
+        raise ValueError("exception d'occurrence non gérée")
+
     cal = Calendar()
     cal.add("prodid", PRODID)
     cal.add("version", "2.0")
 
-    vevent = _build_vevent(event)
+    vevent = _build_vevent(event, uid or event["id"] + GOOGLE_UID_SUFFIX)
     cal.add_component(vevent)
 
     return cal.to_ical().decode("utf-8")
 
 
-def _build_vevent(event: dict) -> Event:
+def _build_vevent(event: dict, uid: str) -> Event:
     """Construit un composant VEVENT à partir d'un événement Google."""
     vevent = Event()
 
-    vevent.add("uid", event["id"] + GOOGLE_UID_SUFFIX)
+    vevent.add("uid", uid)
     vevent.add("summary", event.get("summary", "(sans titre)"))
 
     if event.get("description"):
@@ -41,8 +49,26 @@ def _build_vevent(event: dict) -> Event:
     _add_dates(vevent, event)
     _add_timestamps(vevent, event)
     _add_status(vevent, event)
+    _add_recurrence(vevent, event)
 
     return vevent
+
+
+def _add_recurrence(vevent: Event, event: dict) -> None:
+    """Recopie les lignes de récurrence Google (RRULE/RDATE/EXDATE/EXRULE)."""
+    lines = event.get("recurrence")
+    if not lines:
+        return
+
+    raw = "BEGIN:VEVENT\r\n" + "\r\n".join(lines) + "\r\nEND:VEVENT"
+    parsed = Event.from_ical(raw)
+    for name in ("rrule", "rdate", "exdate", "exrule"):
+        value = parsed.get(name)
+        if value is None:
+            continue
+        props = value if isinstance(value, list) else [value]
+        for prop in props:
+            vevent.add(name, prop)
 
 
 def _add_dates(vevent: Event, event: dict) -> None:

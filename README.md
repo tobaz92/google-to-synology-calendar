@@ -1,16 +1,23 @@
 # Google to Radicale Sync
 
-Synchronisation **unidirectionnelle** Google Calendar vers un serveur [Radicale](https://radicale.org/) (CalDAV).
+Synchronisation **bidirectionnelle** entre Google Calendar et un serveur [Radicale](https://radicale.org/) (CalDAV).
 
-Dès qu'un changement est détecté dans un calendrier Google, il est automatiquement répercuté (création, mise à jour, suppression) dans le calendrier Radicale correspondant.
+Tout changement d'un côté (création, mise à jour, suppression) est répercuté de l'autre : un événement ajouté dans Google apparaît dans Radicale, un événement modifié dans Radicale est poussé vers Google.
 
 ## Fonctionnalités
 
-- **Sync incrémentale** via Google `syncToken` (ne récupère que les changements)
-- **Plusieurs calendriers** avec mapping configurable
+- **Bidirectionnel** avec anti-boucle (nos propres écritures ne rebondissent pas)
+- **Sync incrémentale des deux côtés** : Google `syncToken` + CalDAV `sync-collection` (RFC 6578)
+- **Conflits** : le dernier modifié gagne (`updated` Google vs `LAST-MODIFIED` CalDAV)
+- **Suppressions propagées** dans les deux sens ; une modification bat une suppression
+- **Plusieurs calendriers** avec mapping 1↔1 configurable
 - **Création automatique** des calendriers Radicale manquants
 - **Polling** périodique (intervalle configurable)
 - **Déploiement Docker** pensé pour Synology Container Manager
+
+### Limitation connue
+
+Les **exceptions d'occurrences** de récurrence (une seule occurrence déplacée/modifiée) ne sont pas converties : elles sont comptées « ignoré » dans les logs. Les récurrences simples (RRULE/EXDATE) passent dans les deux sens.
 
 ## Quickstart
 
@@ -85,8 +92,10 @@ DATA_DIR=./data python -m src
 ├── src/
 │   ├── main.py              # boucle de sync principale
 │   ├── core/                # config, state, logging, constantes
-│   ├── google/              # auth + lecture événements Google
-│   └── radicale/            # client CalDAV, conversion, CRUD
+│   ├── google/              # auth, lecture/écriture événements, conversion
+│   ├── radicale/            # client CalDAV, changements RFC 6578, CRUD
+│   └── sync/                # moteur de réconciliation bidirectionnel
+├── tests/                   # tests de la logique de réconciliation
 └── data/                    # volume Docker (config, tokens, state)
 ```
 

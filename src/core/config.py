@@ -71,10 +71,16 @@ def _validate_radicale(radicale: dict) -> None:
 
 
 def _validate_calendars(calendars) -> None:
-    """Valide chaque mapping google_calendar_id → radicale_calendar."""
+    """Valide chaque mapping google_calendar_id → radicale_calendar.
+
+    Les doublons sont rejetés : deux mappings partageant un même calendrier
+    (d'un côté ou de l'autre) partageraient syncTokens et table d'état, et
+    se contamineraient mutuellement. Le fan-out n'est pas supporté.
+    """
     if not isinstance(calendars, list) or not calendars:
         raise ValueError("config.yaml : 'calendars' doit être une liste non vide")
 
+    seen = {key: set() for key in REQUIRED_MAPPING_KEYS}
     for i, mapping in enumerate(calendars):
         if not isinstance(mapping, dict):
             raise ValueError(f"config.yaml : calendars[{i}] doit être un dictionnaire")
@@ -83,3 +89,8 @@ def _validate_calendars(calendars) -> None:
                 raise ValueError(
                     f"config.yaml : clé '{key}' manquante dans calendars[{i}]"
                 )
+            if mapping[key] in seen[key]:
+                raise ValueError(
+                    f"config.yaml : {key} dupliqué dans calendars : {mapping[key]}"
+                )
+            seen[key].add(mapping[key])
