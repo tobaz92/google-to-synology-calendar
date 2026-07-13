@@ -16,6 +16,7 @@ services:
       - TZ=Europe/Paris
       - DATA_DIR=/app/data
       - PYTHONDONTWRITEBYTECODE=1
+      - RADICALE_PASSWORD=${RADICALE_PASSWORD:-}
     cap_drop:
       - ALL
     security_opt:

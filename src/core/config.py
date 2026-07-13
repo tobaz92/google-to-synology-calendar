@@ -1,6 +1,7 @@
 """Chargement et validation de la configuration YAML."""
 
 import logging
+import os
 
 import yaml
 
@@ -10,6 +11,7 @@ log = logging.getLogger("google2radicale")
 
 REQUIRED_KEYS = ("radicale", "calendars")
 REQUIRED_RADICALE_KEYS = ("url", "username")
+REQUIRED_MAPPING_KEYS = ("google_calendar_id", "radicale_calendar")
 
 
 def load_config() -> dict:
@@ -36,22 +38,48 @@ def _validate(cfg) -> None:
         if key not in cfg:
             raise ValueError(f"Clé obligatoire manquante dans config.yaml : '{key}'")
 
+    _validate_radicale(cfg["radicale"])
+    _validate_calendars(cfg["calendars"])
+
+    poll = cfg.get("poll_interval", 300)
+    if not isinstance(poll, (int, float)) or poll < 30:
+        raise ValueError("poll_interval doit être >= 30 secondes")
+
+
+def _validate_radicale(radicale: dict) -> None:
+    """Valide la section radicale, mot de passe compris (fail-fast au boot)."""
     for key in REQUIRED_RADICALE_KEYS:
-        if key not in cfg["radicale"]:
+        if key not in radicale:
             raise ValueError(f"Clé radicale.{key} manquante dans config.yaml")
 
-    if not isinstance(cfg["calendars"], list) or not cfg["calendars"]:
-        raise ValueError("config.yaml : 'calendars' doit être une liste non vide")
-
-    url = cfg["radicale"]["url"]
+    url = radicale["url"]
     if not url.startswith(("https://", "http://")):
-        raise ValueError(f"radicale.url invalide (doit commencer par https://): {url}")
+        raise ValueError(
+            f"radicale.url invalide (doit commencer par http:// ou https://) : {url}"
+        )
     if url.startswith("http://"):
         log.warning(
             "radicale.url utilise HTTP — les credentials transitent en clair. "
             "OK en local sur le NAS, à éviter à travers le réseau."
         )
 
-    poll = cfg.get("poll_interval", 300)
-    if not isinstance(poll, (int, float)) or poll < 30:
-        raise ValueError("poll_interval doit être >= 30 secondes")
+    if not (os.environ.get("RADICALE_PASSWORD") or radicale.get("password")):
+        raise ValueError(
+            "Mot de passe Radicale manquant : définis radicale.password dans "
+            "config.yaml ou RADICALE_PASSWORD en variable d'environnement"
+        )
+
+
+def _validate_calendars(calendars) -> None:
+    """Valide chaque mapping google_calendar_id → radicale_calendar."""
+    if not isinstance(calendars, list) or not calendars:
+        raise ValueError("config.yaml : 'calendars' doit être une liste non vide")
+
+    for i, mapping in enumerate(calendars):
+        if not isinstance(mapping, dict):
+            raise ValueError(f"config.yaml : calendars[{i}] doit être un dictionnaire")
+        for key in REQUIRED_MAPPING_KEYS:
+            if key not in mapping:
+                raise ValueError(
+                    f"config.yaml : clé '{key}' manquante dans calendars[{i}]"
+                )
